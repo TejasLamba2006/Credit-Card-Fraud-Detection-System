@@ -5,6 +5,8 @@
 ![Scikit-learn](https://img.shields.io/badge/scikit--learn-v1.3+-orange.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
+https://github.com/user-attachments/assets/b6e7bac8-573d-4ade-b17b-ef011825ca4f
+
 A comprehensive machine learning solution for detecting fraudulent credit card transactions in real-time. This project combines exploratory data analysis, feature engineering, and machine learning to create an accurate fraud detection system with an interactive web interface.
 
 ## 🎯 Project Overview
