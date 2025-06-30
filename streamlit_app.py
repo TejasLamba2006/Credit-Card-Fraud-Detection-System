@@ -58,14 +58,29 @@ st.markdown("""
 
 @st.cache_data
 def load_data():
-    """Load and cache the dataset"""
-    try:
-        df = pd.read_csv("creditcard.csv")
-        return df
-    except FileNotFoundError:
-        st.error(
-            "Dataset 'creditcard.csv' not found. Please ensure the file is in the same directory.")
-        return None
+    """Load and cache the dataset - tries sample first, then full dataset"""
+    # Try sample dataset first (for GitHub/Streamlit deployment)
+    for filename in ["creditcard_sample.csv", "creditcard.csv"]:
+        try:
+            df = pd.read_csv(filename)
+            st.info(f"📊 Loaded dataset: {filename} ({len(df):,} rows)")
+            return df
+        except FileNotFoundError:
+            continue
+
+    # If no dataset found, show helpful error
+    st.error("""
+    ❌ **Dataset not found!** 
+    
+    Please ensure one of these files is in the same directory:
+    - `creditcard_sample.csv` (recommended for demo)
+    - `creditcard.csv` (full dataset)
+    
+    **To get the dataset:**
+    1. Run `python download.py` to download and create sample
+    2. Or download manually from [Kaggle](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
+    """)
+    return None
 
 
 @st.cache_resource

@@ -103,12 +103,40 @@ streamlit run streamlit_app.py
 
 ## 📊 Dataset Information
 
-The project uses a credit card transactions dataset containing:
+This repository includes both full and sample datasets:
 
-- **284,807 transactions** with 31 features
-- **492 fraud cases** (0.172% of all transactions)
-- **Features include**: Transaction type, amount, account balances, time steps
-- **Target variable**: Binary fraud indicator (0=Normal, 1=Fraud)
+### Sample Dataset (Included)
+
+- **50,000 transactions** from the original dataset
+- **8,213 fraud cases** (all fraud cases included)
+- **File size**: 3.7 MB (GitHub-friendly)
+- **Purpose**: Demo, development, and Streamlit Cloud deployment
+
+### Full Dataset (Download Required)
+
+- **6.3M+ transactions** with comprehensive coverage
+- **Complete fraud case analysis**
+- **File size**: 470 MB (requires special handling)
+- **Purpose**: Complete analysis and model training
+
+### Getting the Dataset
+
+**Option 1: Use Sample Dataset (Recommended for Demo)**
+
+```bash
+# Sample dataset is already included in the repository
+# File: creditcard_sample.csv
+```
+
+**Option 2: Download Full Dataset**
+
+```bash
+# Run the download script
+python download.py
+
+# Or download manually from Kaggle
+# https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud
+```
 
 ### Key Features
 
