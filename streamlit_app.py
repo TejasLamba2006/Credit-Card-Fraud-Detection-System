@@ -470,13 +470,14 @@ def show_fraud_detection(df, model):
                 scaler = model.get('scaler')
                 feature_names = model.get('feature_names', [])
                 has_categorical = model.get('has_categorical', False)
-                
+
                 # Prepare input data for simple model
                 if has_categorical and os.path.exists("label_encoder.pkl"):
                     # Load label encoder and encode transaction type
                     label_encoder = joblib.load("label_encoder.pkl")
-                    type_encoded = label_encoder.transform([transaction_type])[0]
-                    
+                    type_encoded = label_encoder.transform(
+                        [transaction_type])[0]
+
                     # Create input array in the same order as training
                     input_array = np.array([[
                         amount,
@@ -495,15 +496,15 @@ def show_fraud_detection(df, model):
                         old_balance_dest,
                         new_balance_dest
                     ]])
-                
+
                 # Scale the input if scaler exists
                 if scaler is not None:
                     input_array = scaler.transform(input_array)
-                
+
                 # Make predictions
                 prediction = ml_model.predict(input_array)[0]
                 prediction_proba = ml_model.predict_proba(input_array)[0]
-                
+
             else:
                 # Old model format (direct prediction on DataFrame)
                 prediction = model.predict(input_data)[0]
