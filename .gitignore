@@ -1,6 +1,5 @@
 # Large dataset files
 creditcard.csv
-*.pkl
 
 # Python
 __pycache__/

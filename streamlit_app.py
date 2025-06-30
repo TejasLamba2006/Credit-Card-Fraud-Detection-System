@@ -88,18 +88,98 @@ def load_model():
     """Load and cache the trained model"""
     try:
         model = joblib.load("credit_card_fraud_model.pkl")
+        st.success("✅ Model loaded successfully!")
         return model
     except FileNotFoundError:
-        st.error(
-            "Model file 'credit_card_fraud_model.pkl' not found. Please ensure you've trained and saved the model.")
+        st.warning("""
+        ⚠️ **Model file not found!**
+        
+        The trained model `credit_card_fraud_model.pkl` is not available. This can happen when:
+        - The model hasn't been trained yet
+        - The model file wasn't uploaded to the deployment
+        
+        **Options:**
+        1. Train the model using the Jupyter notebook locally
+        2. Use the demo mode (explore data analysis features)
+        """)
+        return None
+    except Exception as e:
+        st.error(f"❌ Error loading model: {str(e)}")
+        return None
+
+@st.cache_resource
+def train_model_on_demand(df):
+    """Train a basic model on-demand if no pre-trained model exists"""
+    try:
+        from sklearn.model_selection import train_test_split
+        from sklearn.preprocessing import StandardScaler, OneHotEncoder
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.pipeline import Pipeline
+        from sklearn.compose import ColumnTransformer
+        
+        st.info("🔄 Training model on-demand... This may take a moment.")
+        
+        # Prepare data (assuming the dataset format)
+        target_col = 'Class' if 'Class' in df.columns else 'isFraud'
+        
+        # Select features for training
+        feature_cols = []
+        if 'type' in df.columns:
+            feature_cols.append('type')
+        
+        numerical_features = []
+        for col in ['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest']:
+            if col in df.columns:
+                numerical_features.append(col)
+        
+        if not numerical_features:
+            st.error("❌ Required features not found in dataset")
+            return None
+        
+        # Create feature matrix
+        X = df[numerical_features + feature_cols] if feature_cols else df[numerical_features]
+        y = df[target_col]
+        
+        # Train/test split
+        X_train, X_test, y_train, y_test = train_test_split(
+            X, y, test_size=0.3, stratify=y, random_state=42
+        )
+        
+        # Create preprocessing pipeline
+        preprocessor_steps = [("num", StandardScaler(), numerical_features)]
+        if feature_cols:
+            preprocessor_steps.append(("cat", OneHotEncoder(drop="first"), feature_cols))
+        
+        preprocessor = ColumnTransformer(
+            transformers=preprocessor_steps,
+            remainder='drop'
+        )
+        
+        # Create and train pipeline
+        pipeline = Pipeline([
+            ("preprocessor", preprocessor),
+            ("classifier", LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42))
+        ])
+        
+        pipeline.fit(X_train, y_train)
+        
+        # Save the model
+        joblib.dump(pipeline, "credit_card_fraud_model.pkl")
+        
+        st.success("✅ Model trained and saved successfully!")
+        return pipeline
+        
+    except Exception as e:
+        st.error(f"❌ Error training model: {str(e)}")
         return None
 
 
 def main():
-
+    # Header
     st.markdown('<h1 class="main-header">💳 Credit Card Fraud Detection System</h1>',
                 unsafe_allow_html=True)
-
+    
+    # Sidebar
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox("Choose a page:",
                                 ["🏠 Dashboard",
@@ -107,18 +187,34 @@ def main():
                                  "🔍 Fraud Detection",
                                  "📈 Model Performance",
                                  "ℹ️ About"])
-
+    
+    # Load data and model
     df = load_data()
-    model = load_model()
-
     if df is None:
         st.stop()
-
+    
+    model = load_model()
+    
+    # If model is not available, offer to train one
+    if model is None and page in ["🔍 Fraud Detection", "📈 Model Performance"]:
+        st.sidebar.markdown("---")
+        if st.sidebar.button("🤖 Train Model Now", type="primary"):
+            with st.spinner("Training model... Please wait."):
+                model = train_model_on_demand(df)
+                if model:
+                    st.rerun()
+    
+    # Show pages
     if page == "🏠 Dashboard":
         show_dashboard(df)
     elif page == "📊 Data Analysis":
         show_data_analysis(df)
     elif page == "🔍 Fraud Detection":
+        show_fraud_detection(df, model)
+    elif page == "📈 Model Performance":
+        show_model_performance(df, model)
+    elif page == "ℹ️ About":
+        show_about()
         show_fraud_detection(df, model)
     elif page == "📈 Model Performance":
         show_model_performance(df, model)
@@ -249,7 +345,44 @@ def show_fraud_detection(df, model):
                 unsafe_allow_html=True)
 
     if model is None:
-        st.error("Model not loaded. Please ensure the model file exists.")
+        st.warning("""
+        ⚠️ **Model not available for predictions**
+        
+        The fraud detection model needs to be trained first. You can:
+        
+        1. **Train now**: Click the "🤖 Train Model Now" button in the sidebar
+        2. **Explore other features**: Check out the Dashboard and Data Analysis pages
+        3. **Local training**: Run the Jupyter notebook locally to train the full model
+        """)
+        
+        # Show sample prediction interface (demo mode)
+        st.markdown("---")
+        st.subheader("🎮 Demo Mode - Prediction Interface")
+        st.info("This shows how the prediction interface works (results will be simulated)")
+        
+        # Show the input form for demonstration
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            transaction_type = st.selectbox("Transaction Type",
+                                            options=['PAYMENT', 'TRANSFER', 'CASH_OUT', 'DEBIT', 'CASH_IN'])
+            amount = st.number_input(
+                "Transaction Amount ($)", min_value=0.0, value=100.0, step=0.01)
+            old_balance_orig = st.number_input(
+                "Original Account Old Balance ($)", min_value=0.0, value=1000.0)
+            new_balance_orig = st.number_input(
+                "Original Account New Balance ($)", min_value=0.0, value=900.0)
+        
+        with col2:
+            old_balance_dest = st.number_input(
+                "Destination Account Old Balance ($)", min_value=0.0, value=500.0)
+            new_balance_dest = st.number_input(
+                "Destination Account New Balance ($)", min_value=0.0, value=600.0)
+        
+        if st.button("🎮 Demo Prediction", type="secondary"):
+            st.info("🎮 **Demo Mode**: This would normally predict fraud probability using the trained model")
+            st.info(f"Transaction: {transaction_type} of ${amount:,.2f}")
+        
         return
 
     st.write("Enter transaction details to check for potential fraud:")
