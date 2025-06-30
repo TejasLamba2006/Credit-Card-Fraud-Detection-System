@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
+import os
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 import plotly.express as px
@@ -85,16 +86,27 @@ def load_data():
 
 @st.cache_resource
 def load_model():
-    """Load and cache the trained model with version compatibility handling"""
+    """Load the trained model with enhanced compatibility"""
     try:
-        model = joblib.load("credit_card_fraud_model.pkl")
-        st.success("✅ Model loaded successfully!")
-        return model
+        # Try simple model first (most compatible)
+        if os.path.exists("simple_fraud_model.pkl"):
+            st.info("🤖 Loading simple fraud model...")
+            model_data = joblib.load("simple_fraud_model.pkl")
+            st.success("✅ Simple model loaded successfully!")
+            return model_data
+
+        # Fallback to other models
+        if os.path.exists("credit_card_fraud_model.pkl"):
+            st.info("🤖 Loading standard fraud model...")
+            model = joblib.load("credit_card_fraud_model.pkl")
+            st.success("✅ Model loaded successfully!")
+            return model
+
     except FileNotFoundError:
         st.warning("""
         ⚠️ **Model file not found!**
         
-        The trained model `credit_card_fraud_model.pkl` is not available. This can happen when:
+        The trained model is not available. This can happen when:
         - The model hasn't been trained yet
         - The model file wasn't uploaded to the deployment
         
@@ -119,6 +131,7 @@ def load_model():
         st.error(f"❌ Error loading model: {str(e)}")
         return None
 
+
 @st.cache_resource
 def train_model_on_demand(df):
     """Train a basic model on-demand if no pre-trained model exists"""
@@ -128,41 +141,43 @@ def train_model_on_demand(df):
         from sklearn.linear_model import LogisticRegression
         from sklearn.pipeline import Pipeline
         from sklearn.compose import ColumnTransformer
-        
+
         st.info("🔄 Training model on-demand... This may take a moment.")
-        
+
         # Prepare data (assuming the dataset format)
         target_col = 'Class' if 'Class' in df.columns else 'isFraud'
-        
+
         # Select features for training
         feature_cols = []
         if 'type' in df.columns:
             feature_cols.append('type')
-        
+
         numerical_features = []
         for col in ['amount', 'oldbalanceOrg', 'newbalanceOrig', 'oldbalanceDest', 'newbalanceDest']:
             if col in df.columns:
                 numerical_features.append(col)
-        
+
         if not numerical_features:
             st.error("❌ Required features not found in dataset")
             return None
-        
+
         # Create feature matrix
-        X = df[numerical_features + feature_cols] if feature_cols else df[numerical_features]
+        X = df[numerical_features +
+               feature_cols] if feature_cols else df[numerical_features]
         y = df[target_col]
-        
+
         # Train/test split
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.3, stratify=y, random_state=42
         )
-        
+
         # Create preprocessing pipeline (simplified for compatibility)
         if feature_cols:
             # Use separate transformers to avoid version issues
             num_transformer = StandardScaler()
-            cat_transformer = OneHotEncoder(drop="first", handle_unknown="ignore")
-            
+            cat_transformer = OneHotEncoder(
+                drop="first", handle_unknown="ignore")
+
             preprocessor = ColumnTransformer(
                 transformers=[
                     ("num", num_transformer, numerical_features),
@@ -173,26 +188,26 @@ def train_model_on_demand(df):
             )
         else:
             preprocessor = StandardScaler()
-        
+
         # Create and train pipeline (simplified)
         pipeline = Pipeline([
             ("preprocessor", preprocessor),
             ("classifier", LogisticRegression(
-                max_iter=1000, 
-                class_weight='balanced', 
+                max_iter=1000,
+                class_weight='balanced',
                 random_state=42,
                 solver='liblinear'
             ))
         ])
-        
+
         pipeline.fit(X_train, y_train)
-        
+
         # Save the model
         joblib.dump(pipeline, "credit_card_fraud_model.pkl")
-        
+
         st.success("✅ Model trained and saved successfully!")
         return pipeline
-        
+
     except Exception as e:
         st.error(f"❌ Error training model: {str(e)}")
         return None
@@ -202,7 +217,7 @@ def main():
     # Header
     st.markdown('<h1 class="main-header">💳 Credit Card Fraud Detection System</h1>',
                 unsafe_allow_html=True)
-    
+
     # Sidebar
     st.sidebar.title("Navigation")
     page = st.sidebar.selectbox("Choose a page:",
@@ -211,14 +226,14 @@ def main():
                                  "🔍 Fraud Detection",
                                  "📈 Model Performance",
                                  "ℹ️ About"])
-    
+
     # Load data and model
     df = load_data()
     if df is None:
         st.stop()
-    
+
     model = load_model()
-    
+
     # If model is not available, offer to train one
     if model is None and page in ["🔍 Fraud Detection", "📈 Model Performance"]:
         st.sidebar.markdown("---")
@@ -227,7 +242,7 @@ def main():
                 model = train_model_on_demand(df)
                 if model:
                     st.rerun()
-    
+
     # Show pages
     if page == "🏠 Dashboard":
         show_dashboard(df)
@@ -378,15 +393,16 @@ def show_fraud_detection(df, model):
         2. **Explore other features**: Check out the Dashboard and Data Analysis pages
         3. **Local training**: Run the Jupyter notebook locally to train the full model
         """)
-        
+
         # Show sample prediction interface (demo mode)
         st.markdown("---")
         st.subheader("🎮 Demo Mode - Prediction Interface")
-        st.info("This shows how the prediction interface works (results will be simulated)")
-        
+        st.info(
+            "This shows how the prediction interface works (results will be simulated)")
+
         # Show the input form for demonstration
         col1, col2 = st.columns(2)
-        
+
         with col1:
             transaction_type = st.selectbox("Transaction Type",
                                             options=['PAYMENT', 'TRANSFER', 'CASH_OUT', 'DEBIT', 'CASH_IN'])
@@ -396,17 +412,18 @@ def show_fraud_detection(df, model):
                 "Original Account Old Balance ($)", min_value=0.0, value=1000.0)
             new_balance_orig = st.number_input(
                 "Original Account New Balance ($)", min_value=0.0, value=900.0)
-        
+
         with col2:
             old_balance_dest = st.number_input(
                 "Destination Account Old Balance ($)", min_value=0.0, value=500.0)
             new_balance_dest = st.number_input(
                 "Destination Account New Balance ($)", min_value=0.0, value=600.0)
-        
+
         if st.button("🎮 Demo Prediction", type="secondary"):
-            st.info("🎮 **Demo Mode**: This would normally predict fraud probability using the trained model")
+            st.info(
+                "🎮 **Demo Mode**: This would normally predict fraud probability using the trained model")
             st.info(f"Transaction: {transaction_type} of ${amount:,.2f}")
-        
+
         return
 
     st.write("Enter transaction details to check for potential fraud:")
@@ -446,9 +463,51 @@ def show_fraud_detection(df, model):
         })
 
         try:
-
-            prediction = model.predict(input_data)[0]
-            prediction_proba = model.predict_proba(input_data)[0]
+            # Handle different model formats
+            if isinstance(model, dict) and 'model' in model:
+                # Simple model format
+                ml_model = model['model']
+                scaler = model.get('scaler')
+                feature_names = model.get('feature_names', [])
+                has_categorical = model.get('has_categorical', False)
+                
+                # Prepare input data for simple model
+                if has_categorical and os.path.exists("label_encoder.pkl"):
+                    # Load label encoder and encode transaction type
+                    label_encoder = joblib.load("label_encoder.pkl")
+                    type_encoded = label_encoder.transform([transaction_type])[0]
+                    
+                    # Create input array in the same order as training
+                    input_array = np.array([[
+                        amount,
+                        old_balance_orig,
+                        new_balance_orig,
+                        old_balance_dest,
+                        new_balance_dest,
+                        type_encoded
+                    ]])
+                else:
+                    # Only numerical features
+                    input_array = np.array([[
+                        amount,
+                        old_balance_orig,
+                        new_balance_orig,
+                        old_balance_dest,
+                        new_balance_dest
+                    ]])
+                
+                # Scale the input if scaler exists
+                if scaler is not None:
+                    input_array = scaler.transform(input_array)
+                
+                # Make predictions
+                prediction = ml_model.predict(input_array)[0]
+                prediction_proba = ml_model.predict_proba(input_array)[0]
+                
+            else:
+                # Old model format (direct prediction on DataFrame)
+                prediction = model.predict(input_data)[0]
+                prediction_proba = model.predict_proba(input_data)[0]
 
             st.markdown("---")
             st.subheader("🎯 Prediction Results")
@@ -667,7 +726,7 @@ def show_about():
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.markdown("**📧 Email**  \nyour.email@domain.com")
+        st.markdown("**📧 Email**  \ntejas22feb@gmail.com")
 
     with col2:
         st.markdown(
