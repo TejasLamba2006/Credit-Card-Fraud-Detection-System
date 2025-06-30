@@ -85,7 +85,7 @@ def load_data():
 
 @st.cache_resource
 def load_model():
-    """Load and cache the trained model"""
+    """Load and cache the trained model with version compatibility handling"""
     try:
         model = joblib.load("credit_card_fraud_model.pkl")
         st.success("✅ Model loaded successfully!")
@@ -101,6 +101,18 @@ def load_model():
         **Options:**
         1. Train the model using the Jupyter notebook locally
         2. Use the demo mode (explore data analysis features)
+        """)
+        return None
+    except (AttributeError, ImportError, ModuleNotFoundError) as e:
+        st.error(f"""
+        ❌ **Model compatibility issue!**
+        
+        The model was created with a different version of scikit-learn.
+        Error: {str(e)[:100]}...
+        
+        **Solutions:**
+        1. Retrain the model on this environment
+        2. Use the auto-train feature below
         """)
         return None
     except Exception as e:
@@ -145,20 +157,32 @@ def train_model_on_demand(df):
             X, y, test_size=0.3, stratify=y, random_state=42
         )
         
-        # Create preprocessing pipeline
-        preprocessor_steps = [("num", StandardScaler(), numerical_features)]
+        # Create preprocessing pipeline (simplified for compatibility)
         if feature_cols:
-            preprocessor_steps.append(("cat", OneHotEncoder(drop="first"), feature_cols))
+            # Use separate transformers to avoid version issues
+            num_transformer = StandardScaler()
+            cat_transformer = OneHotEncoder(drop="first", handle_unknown="ignore")
+            
+            preprocessor = ColumnTransformer(
+                transformers=[
+                    ("num", num_transformer, numerical_features),
+                    ("cat", cat_transformer, feature_cols)
+                ],
+                remainder='passthrough',
+                sparse_threshold=0  # Ensure dense output
+            )
+        else:
+            preprocessor = StandardScaler()
         
-        preprocessor = ColumnTransformer(
-            transformers=preprocessor_steps,
-            remainder='drop'
-        )
-        
-        # Create and train pipeline
+        # Create and train pipeline (simplified)
         pipeline = Pipeline([
             ("preprocessor", preprocessor),
-            ("classifier", LogisticRegression(max_iter=1000, class_weight='balanced', random_state=42))
+            ("classifier", LogisticRegression(
+                max_iter=1000, 
+                class_weight='balanced', 
+                random_state=42,
+                solver='liblinear'
+            ))
         ])
         
         pipeline.fit(X_train, y_train)

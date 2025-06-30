@@ -78,26 +78,40 @@ def create_basic_model():
     print(f"🔄 Training set: {X_train.shape[0]:,} samples")
     print(f"🧪 Test set: {X_test.shape[0]:,} samples")
     
-    # Create preprocessing pipeline
-    preprocessor_steps = [("num", StandardScaler(), numerical_features)]
+    # Create preprocessing pipeline (more compatible approach)
     if categorical_features:
-        preprocessor_steps.append(("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), categorical_features))
-    
-    preprocessor = ColumnTransformer(
-        transformers=preprocessor_steps,
-        remainder='drop'
-    )
+        preprocessor = ColumnTransformer(
+            transformers=[
+                ("num", StandardScaler(), numerical_features),
+                ("cat", OneHotEncoder(drop="first", handle_unknown="ignore"), categorical_features)
+            ],
+            remainder='passthrough',  # More compatible than 'drop'
+            sparse_threshold=0  # Ensure dense output for compatibility
+        )
+    else:
+        preprocessor = StandardScaler()
     
     # Create and train model pipeline
-    pipeline = Pipeline([
-        ("preprocessor", preprocessor),
-        ("classifier", LogisticRegression(
-            max_iter=1000, 
-            class_weight='balanced', 
-            random_state=42,
-            solver='liblinear'  # More stable for small datasets
-        ))
-    ])
+    if categorical_features:
+        pipeline = Pipeline([
+            ("preprocessor", preprocessor),
+            ("classifier", LogisticRegression(
+                max_iter=1000, 
+                class_weight='balanced', 
+                random_state=42,
+                solver='liblinear'  # More stable for small datasets
+            ))
+        ])
+    else:
+        pipeline = Pipeline([
+            ("scaler", preprocessor),
+            ("classifier", LogisticRegression(
+                max_iter=1000, 
+                class_weight='balanced', 
+                random_state=42,
+                solver='liblinear'
+            ))
+        ])
     
     print("🚀 Training model...")
     pipeline.fit(X_train, y_train)
